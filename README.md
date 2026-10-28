@@ -1,5 +1,7 @@
 # MiniRedis
 
+[![ci](https://github.com/amandev11/miniredis/actions/workflows/ci.yml/badge.svg)](https://github.com/amandev11/miniredis/actions/workflows/ci.yml)
+
 A Redis-inspired, in-memory key-value database engine written from scratch in
 Go. It speaks RESP2 over TCP, stores binary-safe strings and hashes, expires
 keys with lazy and active expiration, and persists changes with its own
