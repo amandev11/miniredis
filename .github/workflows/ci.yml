@@ -1,0 +1,90 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# The workflow only reads the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: build, vet, test, race
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "these files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go build
+        run: go build ./...
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test -count=1 ./...
+
+      - name: go test -race
+        run: go test -race -count=1 ./...
+
+      # Benchmarks must actually run, so CI proves they execute rather than
+      # trusting that they would.
+      - name: benchmarks (smoke)
+        run: go test -run '^$' -bench . -benchtime=200ms ./internal/server
+
+      - name: end-to-end demo (two clients, expiration, restart recovery)
+        run: |
+          make build
+          ./scripts/demo.sh
+
+  docker:
+    name: docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: build image
+        run: docker build -t miniredis:ci .
+
+      - name: run the container and exercise it
+        run: |
+          set -euo pipefail
+          docker run -d --name miniredis-ci \
+            -e MINIREDIS_REQUIREPASS=ci-password \
+            -p 127.0.0.1:6379:6379 \
+            miniredis:ci
+          # Wait for the readiness endpoint, which never touches stored data.
+          for _ in $(seq 1 60); do
+            if docker exec miniredis-ci wget -q -O /dev/null http://127.0.0.1:7379/ready; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec miniredis-ci mini-cli --addr 127.0.0.1:6379 -a ci-password SET ci key
+          test "$(docker exec miniredis-ci mini-cli --addr 127.0.0.1:6379 -a ci-password GET ci)" = "key"
+          # An unauthenticated client must be refused.
+          if docker exec miniredis-ci mini-cli --addr 127.0.0.1:6379 GET ci; then
+            echo "unauthenticated GET succeeded, which must not happen"
+            exit 1
+          fi
+          docker stop --time 20 miniredis-ci
+          docker logs miniredis-ci
