@@ -1,0 +1,28 @@
+# Build output
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# Local runtime data (journal, snapshots)
+/data/
+*.mrj
+*.mrs
+*.tmp
+
+# Profiling artifacts
+*.pprof
+*.prof
+cpu.prof
+mem.prof
+
+# Editor / OS noise
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Local environment overrides (never commit credentials)
+.env
+.env.local

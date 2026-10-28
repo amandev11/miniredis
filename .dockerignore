@@ -1,0 +1,28 @@
+# Build output is produced inside the image.
+bin/
+dist/
+
+# Local runtime data must never be baked into an image.
+data/
+*.mrj
+*.mrs
+*.tmp
+
+# Profiling and coverage artifacts.
+*.pprof
+*.prof
+coverage.out
+
+# Git and editor metadata.
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# Local secrets.
+.env
+.env.local
+
+# Documentation is not needed at runtime.
+*.md
+docs/

@@ -1,0 +1,42 @@
+# MiniRedis via Docker Compose.
+#
+# Quick start:
+#   cp .env.example .env      # then edit MINIREDIS_PASSWORD
+#   docker compose up --build
+#   docker compose exec miniredis mini-cli -a "$MINIREDIS_PASSWORD" PING
+#
+# The password is required on purpose: the container listens on every interface,
+# and MiniRedis refuses to serve an unauthenticated public listener unless it is
+# asked to with --allow-insecure.
+
+services:
+  miniredis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: miniredis:local
+    restart: unless-stopped
+    # Published on the loopback interface only. Remove the 127.0.0.1 prefix if
+    # other machines must reach the server.
+    ports:
+      - "127.0.0.1:6379:6379"
+      - "127.0.0.1:7379:7379"
+    environment:
+      MINIREDIS_REQUIREPASS: ${MINIREDIS_PASSWORD:?set MINIREDIS_PASSWORD in .env (see .env.example)}
+      MINIREDIS_APPENDFSYNC: ${MINIREDIS_APPENDFSYNC:-everysec}
+      MINIREDIS_LOG_LEVEL: ${MINIREDIS_LOG_LEVEL:-info}
+    volumes:
+      - miniredis-data:/data
+    # Stop cleanly: Compose sends SIGTERM, and the server drains, snapshots and
+    # exits within the grace period.
+    stop_grace_period: 20s
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:7379/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  # The journal and snapshots survive container replacement.
+  miniredis-data:
