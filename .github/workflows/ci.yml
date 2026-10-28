@@ -80,7 +80,8 @@ jobs:
             sleep 1
           done
           docker exec miniredis-ci mini-cli --addr 127.0.0.1:6379 -a ci-password SET ci key
-          test "$(docker exec miniredis-ci mini-cli --addr 127.0.0.1:6379 -a ci-password GET ci)" = "key"
+          # --raw prints the bulk string as-is; the default rendering quotes it.
+          test "$(docker exec miniredis-ci mini-cli --addr 127.0.0.1:6379 -a ci-password --raw GET ci)" = "key"
           # An unauthenticated client must be refused.
           if docker exec miniredis-ci mini-cli --addr 127.0.0.1:6379 GET ci; then
             echo "unauthenticated GET succeeded, which must not happen"
